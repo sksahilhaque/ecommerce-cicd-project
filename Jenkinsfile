@@ -10,7 +10,7 @@ pipeline {
     maven 'Maven 3.9.4'
   }
 
-  // stages {
+  stages {
   //   stage('Clone') {
   //     steps {
   //       git 'https://github.com/sksahilhaque/ecommerce-cicd-project.git'
