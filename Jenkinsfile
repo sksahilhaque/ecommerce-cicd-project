@@ -2,48 +2,67 @@ pipeline {
   agent any
 
   environment {
-    DOCKER_HUB_CREDENTIALS = credentials('docker-hub')
-    IMAGE_NAME_FRONTEND = "yourdockerhub/frontend"
-    IMAGE_NAME_BACKEND = "yourdockerhub/backend"
+    IMAGE_NAME_FRONTEND = "sksahilhaque/frontend"
+    IMAGE_NAME_BACKEND = "sksahilhaque/backend"
+  }
+
+  tools {
+    maven 'Maven 3.9.4'
   }
 
   stages {
     stage('Clone') {
       steps {
-        git 'https://github.com/your-name/ecommerce-project.git'
+        git 'https://github.com/sksahilhaque/ecommerce-cicd-project.git'
       }
     }
 
     stage('Build Backend') {
       steps {
         dir('backend') {
-          sh './mvnw clean package -DskipTests'
+          sh 'mvn clean package -DskipTests'
         }
       }
     }
 
     stage('Build & Push Docker Images') {
       steps {
-        sh 'docker login -u $DOCKER_HUB_CREDENTIALS_USR -p $DOCKER_HUB_CREDENTIALS_PSW'
+        withCredentials([usernamePassword(credentialsId: 'docker-hub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+          sh '''
+            echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
 
-        dir('frontend') {
-          sh 'docker build -t $IMAGE_NAME_FRONTEND .'
-          sh 'docker push $IMAGE_NAME_FRONTEND'
-        }
+            # Build and push frontend
+            cd frontend
+            docker build -t $IMAGE_NAME_FRONTEND .
+            docker push $IMAGE_NAME_FRONTEND
+            cd ..
 
-        dir('backend') {
-          sh 'docker build -t $IMAGE_NAME_BACKEND .'
-          sh 'docker push $IMAGE_NAME_BACKEND'
+            # Build and push backend
+            cd backend
+            docker build -t $IMAGE_NAME_BACKEND .
+            docker push $IMAGE_NAME_BACKEND
+          '''
         }
       }
     }
 
     stage('Deploy') {
       steps {
-        sh 'docker-compose down || true'
-        sh 'docker-compose pull'
-        sh 'docker-compose up -d'
+        sh '''
+          docker-compose down || true
+          docker-compose pull
+          docker-compose up -d
+        '''
       }
+    }
+  }
+
+  post {
+    success {
+      echo '✅ CI/CD pipeline completed successfully!'
+    }
+    failure {
+      echo '❌ CI/CD pipeline failed. Check build logs.'
     }
   }
 }
